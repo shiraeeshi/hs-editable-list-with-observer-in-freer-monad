@@ -55,50 +55,39 @@ addDebugMessagesListener listener (AppStateListeners _rowsListeners _activeCellY
 --   updateActiveCellY :: Maybe Int -> m ()
 --   log :: String -> m ()
 
-data EditableListApp a where
-  GetList :: EditableListApp [RowData]
-  GetActiveCellY :: EditableListApp (Maybe Int)
-  GetLogs :: EditableListApp [String]
+data EditableListAppI a where
+  GetList :: EditableListAppI [RowData]
+  GetActiveCellY :: EditableListAppI (Maybe Int)
+  GetLogs :: EditableListAppI [String]
 
-  UpdateList :: [RowData] -> EditableListApp ()
-  UpdateActiveCellY :: (Maybe Int) -> EditableListApp ()
-  Log :: String -> EditableListApp ()
+  UpdateList :: [RowData] -> EditableListAppI ()
+  UpdateActiveCellY :: (Maybe Int) -> EditableListAppI ()
+  Log :: String -> EditableListAppI ()
 
-  Done :: a -> EditableListApp a
-  Bind :: EditableListApp a -> (a -> EditableListApp b) -> EditableListApp b
+  Done :: a -> EditableListAppI a
+  Bind :: EditableListAppI a -> (a -> EditableListAppI b) -> EditableListAppI b
 
-getList :: EditableListApp [RowData]
+getList :: EditableListAppI [RowData]
 getList = GetList
 
-getActiveCellY :: EditableListApp (Maybe Int)
+getActiveCellY :: EditableListAppI (Maybe Int)
 getActiveCellY = GetActiveCellY
 
-getLogs :: EditableListApp [String]
+getLogs :: EditableListAppI [String]
 getLogs = GetLogs
 
-updateList :: [RowData] -> EditableListApp ()
+updateList :: [RowData] -> EditableListAppI ()
 updateList = UpdateList
 
-updateActiveCellY :: (Maybe Int) -> EditableListApp ()
+updateActiveCellY :: (Maybe Int) -> EditableListAppI ()
 updateActiveCellY = UpdateActiveCellY
 
-log :: String -> EditableListApp ()
+log :: String -> EditableListAppI ()
 log = Log
-
-instance Functor EditableListApp where
-  fmap f x = x `Bind` (\x' -> Done (f x'))
-
-instance Applicative EditableListApp where
-  pure = Done
-  f <*> x = f `Bind` (\f' -> x `Bind` (\x' -> Done (f' x')))
-
-instance Monad EditableListApp where
-  return = Done
-  (>>=) = Bind
 
 newtype DictStateHolder a = Dict (StateT (AppStateData DictStateHolder) IO a) deriving (Functor, Applicative, Monad, MonadIO)
 
-interpret :: EditableListApp a -> DictStateHolder a
+interpret :: EditableListAppI a -> DictStateHolder a
 interpret GetList = Dict $ rows <$> get
 interpret GetActiveCellY = Dict $ activeCellY <$> get
 interpret GetLogs = Dict $ debugMessages <$> get
@@ -143,7 +132,7 @@ main = do
     initialState :: AppStateData DictStateHolder
     initialState = AppState [] Nothing [] initListeners
 
-    initRows :: EditableListApp ()
+    initRows :: EditableListAppI ()
     initRows = updateList initialRows
 
     initListeners =
