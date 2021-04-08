@@ -9,6 +9,7 @@ import Control.Monad.State.Strict (StateT, get, modify, runStateT)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import qualified Data.Map as Map
 import ViewUtils (clearScreen, showInRectangle, clearRectangle, showInGrid, drawGrid, highlightCell, printFromBottom)
+import FreerProgram (Program(..), foldFreer)
 import Prelude hiding (log)
 
 data RowData = Row { smth :: String } deriving Eq
@@ -67,45 +68,48 @@ data EditableListAppI a where
   Done :: a -> EditableListAppI a
   Bind :: EditableListAppI a -> (a -> EditableListAppI b) -> EditableListAppI b
 
-getList :: EditableListAppI [RowData]
-getList = GetList
+getList :: Program EditableListAppI [RowData]
+getList = Instr $ GetList
 
-getActiveCellY :: EditableListAppI (Maybe Int)
-getActiveCellY = GetActiveCellY
+getActiveCellY :: Program EditableListAppI (Maybe Int)
+getActiveCellY = Instr $ GetActiveCellY
 
-getLogs :: EditableListAppI [String]
-getLogs = GetLogs
+getLogs :: Program EditableListAppI [String]
+getLogs = Instr $ GetLogs
 
-updateList :: [RowData] -> EditableListAppI ()
-updateList = UpdateList
+updateList :: [RowData] -> Program EditableListAppI ()
+updateList x = Instr . UpdateList $ x
 
-updateActiveCellY :: (Maybe Int) -> EditableListAppI ()
-updateActiveCellY = UpdateActiveCellY
+updateActiveCellY :: (Maybe Int) -> Program EditableListAppI ()
+updateActiveCellY y = Instr . UpdateActiveCellY $ y
 
-log :: String -> EditableListAppI ()
-log = Log
+log :: String -> Program EditableListAppI ()
+log msg = Instr . Log $ msg
 
 newtype DictStateHolder a = Dict (StateT (AppStateData DictStateHolder) IO a) deriving (Functor, Applicative, Monad, MonadIO)
 
-interpret :: EditableListAppI a -> DictStateHolder a
-interpret GetList = Dict $ rows <$> get
-interpret GetActiveCellY = Dict $ activeCellY <$> get
-interpret GetLogs = Dict $ debugMessages <$> get
+interpret' :: EditableListAppI a -> DictStateHolder a
+interpret' GetList = Dict $ rows <$> get
+interpret' GetActiveCellY = Dict $ activeCellY <$> get
+interpret' GetLogs = Dict $ debugMessages <$> get
 
-interpret (UpdateList l) = do
+interpret' (UpdateList l) = do
   Dict $ modify $ \s -> s { rows = l }
   reacts <- Dict $ (rowsListeners . listeners) <$> get
   forM_ reacts ($ l)
-interpret (UpdateActiveCellY y) = do
+interpret' (UpdateActiveCellY y) = do
   Dict $ modify $ \s -> s { activeCellY = y }
   s <- Dict $ get
   let reacts = activeCellYListeners (listeners s)
   forM_ reacts ($ y)
-interpret (Log msg) = do
+interpret' (Log msg) = do
   Dict $ modify $ \s -> s { debugMessages = take debugLinesCount (msg:(debugMessages s)) }
   logs <- Dict $ debugMessages <$> get
   reacts <- Dict $ (debugMessagesListeners . listeners) <$> get
   forM_ reacts ($ logs)
+
+interpret :: Program EditableListAppI a -> DictStateHolder a
+interpret = foldFreer interpret'
 
 dictStateAction :: AppStateData DictStateHolder -> DictStateHolder a -> IO ()
 dictStateAction state (Dict action) = do
@@ -132,7 +136,7 @@ main = do
     initialState :: AppStateData DictStateHolder
     initialState = AppState [] Nothing [] initListeners
 
-    initRows :: EditableListAppI ()
+    initRows :: Program EditableListAppI ()
     initRows = updateList initialRows
 
     initListeners =

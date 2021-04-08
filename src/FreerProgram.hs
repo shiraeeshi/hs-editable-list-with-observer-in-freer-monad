@@ -1,5 +1,6 @@
 {-# LANGUAGE GADTs #-}
-module FreerProgram (Program(..)) where
+{-# LANGUAGE  RankNTypes #-}
+module FreerProgram (Program(..), foldFreer) where
 
 data Program instr a where
   Done :: a -> Program instr a
@@ -16,3 +17,9 @@ instance Applicative (Program instr) where
 instance Monad (Program instr) where
   return = Done
   (>>=) = Bind
+
+foldFreer :: Monad m => (forall r. instr r -> m r) -> Program instr a -> m a
+foldFreer _ (Done x) = return x
+foldFreer interpret (x `Bind` f) = do x' <- foldFreer interpret x
+                                      foldFreer interpret (f x')
+foldFreer interpret (Instr x) = interpret x
