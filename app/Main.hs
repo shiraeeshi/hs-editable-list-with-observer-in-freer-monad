@@ -65,9 +65,6 @@ data EditableListAppI a where
   UpdateActiveCellY :: (Maybe Int) -> EditableListAppI ()
   Log :: String -> EditableListAppI ()
 
-  Done :: a -> EditableListAppI a
-  Bind :: EditableListAppI a -> (a -> EditableListAppI b) -> EditableListAppI b
-
 getList :: Program EditableListAppI [RowData]
 getList = Instr $ GetList
 
