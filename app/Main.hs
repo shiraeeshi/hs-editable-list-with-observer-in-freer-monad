@@ -81,7 +81,8 @@ log msg = Instr . Log $ msg
 instance MonadIO (Program EditableListAppI) where
   liftIO = Instr . LiftIO
 
-newtype StateHolder a = StateHolder (StateT (AppStateData StateHolder) IO a) deriving (Functor, Applicative, Monad, MonadIO)
+newtype StateHolder a = StateHolder (StateT (AppStateData StateHolder) IO a)
+  deriving (Functor, Applicative, Monad, MonadIO)
 
 interpret' :: EditableListAppI a -> StateHolder a
 interpret' GetList = StateHolder $ rows <$> get
