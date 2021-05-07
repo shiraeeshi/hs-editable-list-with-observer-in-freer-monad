@@ -109,8 +109,8 @@ interpret' (LiftIO a) = do
 interpret :: Program EditableListAppI a -> StateHolder a
 interpret = foldFreer interpret'
 
-dictStateAction :: AppStateData StateHolder -> StateHolder a -> IO ()
-dictStateAction state (StateHolder action) = do
+performStateAction :: AppStateData StateHolder -> StateHolder a -> IO ()
+performStateAction state (StateHolder action) = do
   runStateT action state
   return ()
 
@@ -121,8 +121,8 @@ main = do
   hSetBuffering stdin NoBuffering
   hSetEcho stdin False
   clearScreen
-  --dictStateAction initialState (interpret (do ...))
-  dictStateAction initialState $ interpret $ do
+  --performStateAction initialState (interpret (do ...))
+  performStateAction initialState $ interpret $ do
     initRows
     loop
   where
